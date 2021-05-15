@@ -1,9 +1,8 @@
 package wallet
 
 import (
-	"bytes"
+	"errors"
 
-	"github.com/hectorchu/gonano/ledger"
 	"github.com/hectorchu/gonano/rpc"
 	"github.com/hectorchu/gonano/wallet/ed25519"
 )
@@ -36,23 +35,9 @@ func (seedImpl) signBlock(a *Account, block *rpc.Block) (err error) {
 type ledgerImpl struct{}
 
 func (ledgerImpl) deriveAccount(a *Account) (err error) {
-	path := []uint32{44, 165, a.index}
-	a.pubkey, _, err = ledger.GetAddress(path)
-	return
+	return errors.New("ledger support not available")
 }
 
 func (ledgerImpl) signBlock(a *Account, block *rpc.Block) (err error) {
-	path := []uint32{44, 165, a.index}
-	var zero [32]byte
-	if !bytes.Equal(block.Previous, zero[:]) {
-		bi, err := a.w.RPC.BlockInfo(block.Previous)
-		if err != nil {
-			return err
-		}
-		if err = ledger.CacheBlock(path, bi.Contents); err != nil {
-			return err
-		}
-	}
-	_, block.Signature, err = ledger.SignBlock(path, block)
-	return
+	return errors.New("ledger support not available")
 }
