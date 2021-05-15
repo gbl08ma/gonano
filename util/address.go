@@ -12,7 +12,7 @@ func AddressToPubkey(address string) (pubkey []byte, err error) {
 	err = errors.New("invalid address")
 	switch len(address) {
 	case 64:
-		if address[:4] != "xrb_" {
+		if address[:4] != "xrb_" && address[:4] != "ban_" {
 			return
 		}
 		address = address[4:]
@@ -51,6 +51,20 @@ func PubkeyToAddress(pubkey []byte) (address string, err error) {
 	pubkey = append([]byte{0, 0, 0}, pubkey...)
 	b32 := base32.NewEncoding("13456789abcdefghijkmnopqrstuwxyz")
 	return "nano_" + b32.EncodeToString(pubkey)[4:] + b32.EncodeToString(checksum), nil
+}
+
+// PubkeyToBananoAddress converts pubkey to a Banano address.
+func PubkeyToBananoAddress(pubkey []byte) (address string, err error) {
+	if len(pubkey) != 32 {
+		return "", errors.New("invalid pubkey length")
+	}
+	checksum, err := checksum(pubkey)
+	if err != nil {
+		return
+	}
+	pubkey = append([]byte{0, 0, 0}, pubkey...)
+	b32 := base32.NewEncoding("13456789abcdefghijkmnopqrstuwxyz")
+	return "ban_" + b32.EncodeToString(pubkey)[4:] + b32.EncodeToString(checksum), nil
 }
 
 func checksum(pubkey []byte) (checksum []byte, err error) {
