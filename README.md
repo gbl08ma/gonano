@@ -5,3 +5,4 @@ This is a fork of [gonano](https://github.com/hectorchu/gonano) with a bunch of 
 
  - Removed Ledger hardware wallet support
  - Removed work generation using the GPU
+ - Added Banano support
