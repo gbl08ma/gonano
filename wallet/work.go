@@ -14,9 +14,12 @@ func (w *Wallet) workGenerate(data []byte) (work []byte, err error) {
 }
 
 func (w *Wallet) workGenerateReceive(data []byte) (work []byte, err error) {
-	_, _, _, networkReceiveCurrent, _, _, err := w.RPC.ActiveDifficulty()
+	_, networkCurrent, _, networkReceiveCurrent, _, _, err := w.RPC.ActiveDifficulty()
 	if err != nil {
 		return
+	}
+	if len(networkReceiveCurrent) == 0 {
+		networkReceiveCurrent = networkCurrent
 	}
 	if work, _, _, err = w.RPCWork.WorkGenerate(data, networkReceiveCurrent); err == nil {
 		return
