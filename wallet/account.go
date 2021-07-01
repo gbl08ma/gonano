@@ -128,7 +128,7 @@ func (a *Account) SendBlocks(destinations []SendDestination) ([]*rpc.Block, erro
 			Account:        a.address,
 			Previous:       frontier,
 			Representative: a.representative,
-			Balance:        info.Balance,
+			Balance:        &rpc.RawAmount{Int: *new(big.Int).Set(&info.Balance.Int)},
 			Link:           link,
 		}
 		err = a.w.impl.signBlock(a, block)
