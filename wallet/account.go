@@ -88,17 +88,34 @@ func (a *Account) SendMultiple(destinations []SendDestination) (hashes []rpc.Blo
 	if err != nil {
 		return
 	}
-	for i := range blocks {
-		if blocks[i].Work, err = a.w.workGenerate(blocks[i].Previous); err != nil {
-			return
+	blocksWithWorkChan := make(chan *rpc.Block, len(destinations))
+	errChan := make(chan error)
+	go func() {
+		for i := range blocks {
+			if blocks[i].Work, err = a.w.workGenerate(blocks[i].Previous); err != nil {
+				errChan <- err
+				return
+			}
+			blocksWithWorkChan <- blocks[i]
 		}
-		hash, err := a.w.RPC.Process(blocks[i], "send")
-		if err != nil {
+		close(blocksWithWorkChan)
+	}()
+
+	for {
+		select {
+		case block, ok := <-blocksWithWorkChan:
+			if !ok {
+				return hashes, nil
+			}
+			hash, err := a.w.RPC.Process(block, "send")
+			if err != nil {
+				return nil, err
+			}
+			hashes = append(hashes, hash)
+		case err := <-errChan:
 			return nil, err
 		}
-		hashes = append(hashes, hash)
 	}
-	return hashes, nil
 }
 
 // SendBlocks generates multiple signed send blocks. The caller must guarantee that no new blocks are created for this account between the generated blocks
