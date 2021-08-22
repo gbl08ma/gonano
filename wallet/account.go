@@ -76,6 +76,92 @@ func (a *Account) SendBlock(account string, amount *big.Int) (block *rpc.Block, 
 	return block, a.w.impl.signBlock(a, block)
 }
 
+// SendDestination is a destination for a send block
+type SendDestination struct {
+	Account string
+	Amount  *big.Int
+}
+
+// Send sends multiple amounts to multiple accounts. The caller must guarantee that no new blocks are created for this account until this function returns
+func (a *Account) SendMultiple(destinations []SendDestination) (hashes []rpc.BlockHash, err error) {
+	blocks, err := a.SendBlocks(destinations)
+	if err != nil {
+		return
+	}
+	blocksWithWorkChan := make(chan *rpc.Block, len(destinations))
+	errChan := make(chan error)
+	go func() {
+		for i := range blocks {
+			if blocks[i].Work, err = a.w.workGenerate(blocks[i].Previous); err != nil {
+				errChan <- err
+				return
+			}
+			blocksWithWorkChan <- blocks[i]
+		}
+		close(blocksWithWorkChan)
+	}()
+
+	for {
+		select {
+		case block, ok := <-blocksWithWorkChan:
+			if !ok {
+				return hashes, nil
+			}
+			hash, err := a.w.RPC.Process(block, "send")
+			if err != nil {
+				return nil, err
+			}
+			hashes = append(hashes, hash)
+		case err := <-errChan:
+			return nil, err
+		}
+	}
+}
+
+// SendBlocks generates multiple signed send blocks. The caller must guarantee that no new blocks are created for this account between the generated blocks
+func (a *Account) SendBlocks(destinations []SendDestination) ([]*rpc.Block, error) {
+	blocks := []*rpc.Block{}
+
+	info, err := a.w.RPC.AccountInfo(a.address)
+	if err != nil {
+		return nil, err
+	}
+
+	frontier := info.Frontier
+	for _, destination := range destinations {
+		link, err := util.AddressToPubkey(destination.Account)
+		if err != nil {
+			return nil, err
+		}
+
+		if a.representative == "" {
+			a.representative = info.Representative
+		}
+		if info.Balance.Sub(&info.Balance.Int, destination.Amount).Sign() < 0 {
+			return nil, errors.New("insufficient funds")
+		}
+		block := &rpc.Block{
+			Type:           "state",
+			Account:        a.address,
+			Previous:       frontier,
+			Representative: a.representative,
+			Balance:        &rpc.RawAmount{Int: *new(big.Int).Set(&info.Balance.Int)},
+			Link:           link,
+		}
+		err = a.w.impl.signBlock(a, block)
+		if err != nil {
+			return []*rpc.Block{}, err
+		}
+		blocks = append(blocks, block)
+		frontier, err = block.Hash()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return blocks, nil
+}
+
 // ReceivePendings pockets all pending amounts.
 func (a *Account) ReceivePendings() (err error) {
 	pendings, err := a.w.RPC.AccountsPending([]string{a.address}, -1)
