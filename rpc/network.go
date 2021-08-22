@@ -33,7 +33,26 @@ func (c *Client) ActiveDifficulty() (
 		DifficultyTrend       []string `json:"difficulty_trend"`
 	}
 	if err = json.Unmarshal(resp, &v); err != nil {
-		return
+		// v22.1 node has a bug where DifficultyTrend will be the empty string
+		// a fix for the node is here (this RPC is deprecated) https://github.com/nanocurrency/nano-node/pull/3343/files
+		// but that will only come with v23
+		// in the meantime, attempt to do the backwards-compatibility ourselves
+		var v2 struct {
+			Multiplier            float64 `json:"multiplier,string"`
+			NetworkCurrent        HexData `json:"network_current"`
+			NetworkMinimum        HexData `json:"network_minimum"`
+			NetworkReceiveCurrent HexData `json:"network_receive_current"`
+			NetworkReceiveMinimum HexData `json:"network_receive_minimum"`
+		}
+		if err = json.Unmarshal(resp, &v2); err != nil {
+			return
+		}
+		v.Multiplier = v2.Multiplier
+		v.NetworkCurrent = v2.NetworkCurrent
+		v.NetworkMinimum = v2.NetworkMinimum
+		v.NetworkReceiveCurrent = v2.NetworkReceiveCurrent
+		v.NetworkReceiveMinimum = v2.NetworkReceiveMinimum
+		v.DifficultyTrend = []string{"1.000000000000000"}
 	}
 	difficultyTrend = make([]float64, len(v.DifficultyTrend))
 	for i, s := range v.DifficultyTrend {
