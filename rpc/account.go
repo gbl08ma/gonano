@@ -159,14 +159,18 @@ func (h *HashToPendingMap) UnmarshalJSON(data []byte) (err error) {
 }
 
 // AccountsPending returns a list of pending block hashes with amount and source accounts.
-func (c *Client) AccountsPending(accounts []string, count int64) (pending map[string]HashToPendingMap, err error) {
-	resp, err := c.send(map[string]interface{}{
+func (c *Client) AccountsPending(accounts []string, count int64, threshold *RawAmount) (pending map[string]HashToPendingMap, err error) {
+	m := map[string]interface{}{
 		"action":                 "accounts_pending",
 		"accounts":               accounts,
 		"count":                  count,
 		"include_only_confirmed": true,
 		"source":                 true,
-	})
+	}
+	if threshold != nil {
+		m["threshold"] = threshold
+	}
+	resp, err := c.send(m)
 	if err != nil {
 		return
 	}

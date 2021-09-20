@@ -163,12 +163,25 @@ func (a *Account) SendBlocks(destinations []SendDestination) ([]*rpc.Block, erro
 }
 
 // ReceivePendings pockets all pending amounts.
-func (a *Account) ReceivePendings() (err error) {
-	pendings, err := a.w.RPC.AccountsPending([]string{a.address}, -1)
+func (a *Account) ReceivePendings(threshold *big.Int) (err error) {
+	pendings, err := a.w.RPC.AccountsPending([]string{a.address}, -1,
+		&rpc.RawAmount{Int: *threshold})
 	if err != nil {
 		return
 	}
 	return a.receivePendings(pendings[a.address])
+}
+
+// ReceiveAndReturnPendings pockets all pending amounts and returns the list of sources.
+func (a *Account) ReceiveAndReturnPendings(threshold *big.Int) (receivedPendings rpc.HashToPendingMap, err error) {
+	pendings, err := a.w.RPC.AccountsPending([]string{a.address}, -1,
+		&rpc.RawAmount{Int: *threshold})
+	if err != nil {
+		return
+	}
+	receivedPendings = pendings[a.address]
+	err = a.receivePendings(receivedPendings)
+	return
 }
 
 // ReceivePending pockets the specified link block.

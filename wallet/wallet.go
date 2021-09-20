@@ -1,6 +1,8 @@
 package wallet
 
 import (
+	"math/big"
+
 	"github.com/hectorchu/gonano/rpc"
 	"github.com/hectorchu/gonano/util"
 )
@@ -153,12 +155,12 @@ func (w *Wallet) GetAccounts() (accounts []*Account) {
 }
 
 // ReceivePendings pockets all pending amounts.
-func (w *Wallet) ReceivePendings() (err error) {
+func (w *Wallet) ReceivePendings(threshold *big.Int) (err error) {
 	accounts := make([]string, 0, len(w.accounts))
 	for address := range w.accounts {
 		accounts = append(accounts, address)
 	}
-	pendings, err := w.RPC.AccountsPending(accounts, -1)
+	pendings, err := w.RPC.AccountsPending(accounts, -1, &rpc.RawAmount{Int: *threshold})
 	if err != nil {
 		return
 	}

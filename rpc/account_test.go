@@ -112,7 +112,7 @@ func TestAccountsFrontiers(t *testing.T) {
 
 func TestAccountsPending(t *testing.T) {
 	pendings, err := getClient().AccountsPending([]string{
-		testAccount, "nano_159m8t4iedstzcaacikb9hdkhbcxcqzfbw56dutay8ceqagq9wxpsk9ftfq9"}, 1)
+		testAccount, "nano_159m8t4iedstzcaacikb9hdkhbcxcqzfbw56dutay8ceqagq9wxpsk9ftfq9"}, 1, nil)
 	require.Nil(t, err)
 	require.Len(t, pendings, 2)
 	assert.Empty(t, pendings[testAccount])
