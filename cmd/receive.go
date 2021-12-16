@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"math/big"
+
 	"github.com/spf13/cobra"
 )
 
@@ -16,10 +18,10 @@ var receiveCmd = &cobra.Command{
 				_, err := wi.w.NewAccount(&index)
 				fatalIf(err)
 			}
-			err := wi.w.ReceivePendings()
+			err := wi.w.ReceivePendings(big.NewInt(0))
 			fatalIf(err)
 		} else {
-			err := getAccount().ReceivePendings()
+			err := getAccount().ReceivePendings(big.NewInt(0))
 			fatalIf(err)
 		}
 	},

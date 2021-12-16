@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"math/big"
+	"sync"
 
 	"github.com/hectorchu/gonano/rpc"
 	"github.com/hectorchu/gonano/util"
@@ -9,13 +10,14 @@ import (
 
 // Wallet represents a wallet.
 type Wallet struct {
-	isBanano     bool
-	seed         []byte
-	isBip39      bool
-	nextIndex    uint32
-	accounts     map[string]*Account
-	RPC, RPCWork rpc.Client
-	impl         interface {
+	isBanano      bool
+	seed          []byte
+	isBip39       bool
+	nextIndex     uint32
+	accounts      map[string]*Account
+	accountsMutex sync.RWMutex
+	RPC, RPCWork  rpc.Client
+	impl          interface {
 		deriveAccount(*Account) error
 		signBlock(*Account, *rpc.Block) error
 	}
@@ -103,8 +105,12 @@ func (w *Wallet) ScanForAccounts() (err error) {
 		if frontiers[accounts[i]] != nil {
 			break
 		}
-		w.nextIndex = w.accounts[accounts[i]].index
-		delete(w.accounts, accounts[i])
+		func() {
+			w.accountsMutex.Lock()
+			defer w.accountsMutex.Unlock()
+			w.nextIndex = w.accounts[accounts[i]].index
+			delete(w.accounts, accounts[i])
+		}()
 	}
 	if i < 5 {
 		return
@@ -132,9 +138,18 @@ func (w *Wallet) NewAccount(index *uint32) (a *Account, err error) {
 	if index == nil {
 		w.nextIndex++
 	}
-	if _, ok := w.accounts[a.address]; !ok {
-		w.accounts[a.address] = a
-	} else if index == nil {
+
+	done := false
+	func() {
+		w.accountsMutex.Lock()
+		defer w.accountsMutex.Unlock()
+		if _, ok := w.accounts[a.address]; !ok {
+			w.accounts[a.address] = a
+			done = true
+		}
+	}()
+
+	if !done && index == nil {
 		return w.NewAccount(nil)
 	}
 	return
@@ -142,11 +157,16 @@ func (w *Wallet) NewAccount(index *uint32) (a *Account, err error) {
 
 // GetAccount gets the account with address or nil if not found.
 func (w *Wallet) GetAccount(address string) *Account {
+	w.accountsMutex.RLock()
+	defer w.accountsMutex.RUnlock()
 	return w.accounts[address]
 }
 
 // GetAccounts gets all the accounts in the wallet.
 func (w *Wallet) GetAccounts() (accounts []*Account) {
+	w.accountsMutex.RLock()
+	defer w.accountsMutex.RUnlock()
+
 	accounts = make([]*Account, 0, len(w.accounts))
 	for _, account := range w.accounts {
 		accounts = append(accounts, account)
@@ -156,16 +176,24 @@ func (w *Wallet) GetAccounts() (accounts []*Account) {
 
 // ReceivePendings pockets all pending amounts.
 func (w *Wallet) ReceivePendings(threshold *big.Int) (err error) {
-	accounts := make([]string, 0, len(w.accounts))
-	for address := range w.accounts {
-		accounts = append(accounts, address)
-	}
+
+	var accounts []string
+	accountsMapCopy := make(map[string]*Account)
+	func() {
+		w.accountsMutex.RLock()
+		defer w.accountsMutex.RUnlock()
+		accounts = make([]string, 0, len(w.accounts))
+		for address, account := range w.accounts {
+			accounts = append(accounts, address)
+			accountsMapCopy[address] = account
+		}
+	}()
 	pendings, err := w.RPC.AccountsPending(accounts, -1, &rpc.RawAmount{Int: *threshold})
 	if err != nil {
 		return
 	}
 	for account, pendings := range pendings {
-		if err = w.accounts[account].receivePendings(pendings); err != nil {
+		if err = accountsMapCopy[account].receivePendings(pendings); err != nil {
 			return
 		}
 	}
