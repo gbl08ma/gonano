@@ -86,6 +86,32 @@ func (c *Client) BlocksInfo(hashes []BlockHash) (blocks map[string]*BlockInfo, e
 	return v.Blocks, err
 }
 
+// BlocksInfoIncludingNotFound retrieves a json representations of blocks in
+// contents and the list of block hashes that were not found.
+func (c *Client) BlocksInfoIncludingNotFound(hashes []BlockHash) (blocks map[string]*BlockInfo, notFound []BlockHash, err error) {
+	resp, err := c.send(map[string]interface{}{
+		"action":            "blocks_info",
+		"json_block":        true,
+		"hashes":            hashes,
+		"include_not_found": true,
+	})
+	if err != nil {
+		return
+	}
+	var v struct {
+		Blocks map[string]*BlockInfo
+		// blocks_not_found may come as an empty string instead of an array
+		BlocksNotFound json.RawMessage `json:"blocks_not_found"`
+	}
+	err = json.Unmarshal(resp, &v)
+	if err != nil {
+		return
+	}
+	var blocksNotFound []BlockHash
+	_ = json.Unmarshal(v.BlocksNotFound, &blocksNotFound)
+	return v.Blocks, blocksNotFound, err
+}
+
 // Chain returns a consecutive list of block hashes in the account chain starting
 // at block back to count (direction from frontier back to open block, from newer
 // blocks to older). Will list all blocks back to the open block of this chain when
