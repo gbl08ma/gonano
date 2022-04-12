@@ -10,14 +10,16 @@ import (
 
 // Wallet represents a wallet.
 type Wallet struct {
-	isBanano      bool
-	seed          []byte
-	isBip39       bool
-	nextIndex     uint32
-	accounts      map[string]*Account
-	accountsMutex sync.RWMutex
-	RPC, RPCWork  rpc.Client
-	impl          interface {
+	isBanano              bool
+	seed                  []byte
+	isBip39               bool
+	nextIndex             uint32
+	accounts              map[string]*Account
+	accountsMutex         sync.RWMutex
+	RPC, RPCWork          rpc.Client
+	WorkDifficulty        string
+	ReceiveWorkDifficulty string
+	impl                  interface {
 		deriveAccount(*Account) error
 		signBlock(*Account, *rpc.Block) error
 	}
@@ -66,12 +68,14 @@ func NewLedgerWallet() (w *Wallet, err error) {
 
 func newWallet(seed []byte, isBanano bool) *Wallet {
 	w := &Wallet{
-		isBanano: isBanano,
-		seed:     seed,
-		accounts: make(map[string]*Account),
-		RPC:      rpc.Client{URL: "https://mynano.ninja/api/node"},
-		RPCWork:  rpc.Client{URL: "http://[::1]:7076"},
-		impl:     seedImpl{},
+		isBanano:              isBanano,
+		seed:                  seed,
+		accounts:              make(map[string]*Account),
+		RPC:                   rpc.Client{URL: "https://mynano.ninja/api/node"},
+		RPCWork:               rpc.Client{URL: "http://[::1]:7076"},
+		impl:                  seedImpl{},
+		WorkDifficulty:        "fffffff800000000",
+		ReceiveWorkDifficulty: "fffffe0000000000",
 	}
 	if isBanano {
 		w.RPC = rpc.Client{URL: "https://api-beta.banano.cc"}

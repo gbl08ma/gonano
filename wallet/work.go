@@ -7,7 +7,7 @@ import (
 )
 
 func (w *Wallet) workGenerate(data []byte) (work []byte, err error) {
-	difficulty, _ := hex.DecodeString("fffffff800000000")
+	difficulty, _ := hex.DecodeString(w.WorkDifficulty)
 	if work, _, _, err = w.RPCWork.WorkGenerate(data, difficulty); err == nil {
 		return
 	}
@@ -15,7 +15,7 @@ func (w *Wallet) workGenerate(data []byte) (work []byte, err error) {
 }
 
 func (w *Wallet) workGenerateReceive(data []byte) (work []byte, err error) {
-	difficulty, _ := hex.DecodeString("fffffe0000000000")
+	difficulty, _ := hex.DecodeString(w.ReceiveWorkDifficulty)
 	if work, _, _, err = w.RPCWork.WorkGenerate(data, difficulty); err == nil {
 		return
 	}
